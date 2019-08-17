@@ -395,6 +395,9 @@ done:
 #define STEP_UP 1
 #define STEP_DOWN -1
 static void get_fcc_split(struct pl_data *chip, int total_ua,
+#if defined(CONFIG_NUBIA_CHARGE_FEATURE)
+#define MIN_SPLIT_CHANGE_CURRENT_UA		300000
+#endif
 			int *master_ua, int *slave_ua)
 {
 	int rc, effective_total_ua, slave_limited_ua, hw_cc_delta_ua = 0,
@@ -438,12 +441,20 @@ static void get_fcc_split(struct pl_data *chip, int total_ua,
 	 * charger's current goes through main charger's BATFET, keep
 	 * the main charger's FCC to the votable result.
 	 */
+#if defined(CONFIG_NUBIA_CHARGE_FEATURE)
+	*slave_ua = min(*slave_ua, total_ua - MIN_SPLIT_CHANGE_CURRENT_UA);
+	if (chip->pl_mode == POWER_SUPPLY_PL_USBIN_USBIN)
+		*master_ua = max(MIN_SPLIT_CHANGE_CURRENT_UA, total_ua);
+	else
+		*master_ua = max(MIN_SPLIT_CHANGE_CURRENT_UA, total_ua - *slave_ua);
+#else
 	if (chip->pl_mode == POWER_SUPPLY_PL_USBIN_USBIN)
 		*master_ua = max(0, total_ua);
 	else
 		*master_ua = max(0, total_ua - *slave_ua);
 
 	*slave_ua = (*slave_ua * chip->taper_pct) / 100;
+#endif
 }
 
 static void get_fcc_step_update_params(struct pl_data *chip, int main_fcc_ua,
